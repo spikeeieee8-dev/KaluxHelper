@@ -30,12 +30,12 @@ args = "KaluxHost Discord Bot"
 name = "KaluxHost Discord Bot"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/discord-bot run start"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/discord-bot && .venv/bin/python bot.py"
 
 [agent]
 stack = "PNPM_WORKSPACE"

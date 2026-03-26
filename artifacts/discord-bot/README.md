@@ -1,71 +1,91 @@
 # KaluxHost Discord Bot
 
-A fully modular, cog-based Discord bot for the KaluxHost server.
+A fully modular, cog-based Discord bot built in Python for the KaluxHost server.
 
-## Features
+## Structure
 
-- **Modular cogs** — add new modules by dropping a file in `src/cogs/`. Never touch existing code.
-- **Dual command support** — both prefix (`!`) and slash (`/`) commands
-- **Per-server prefix** — admins can change the prefix with `!setprefix <new>` or `/setprefix`
-- **Persistent storage** — SQLite database stores settings and warnings across restarts
-
-## Cogs (Modules)
-
-| Cog | Commands |
-|-----|----------|
-| **Info** | help, ping, serverinfo, userinfo |
-| **Moderation** | ban, kick, mute, unmute, warn, warnings, purge, slowmode |
-| **Admin** | setprefix, currentprefix |
-| **Hosting** | plans, uptime, status, support, ticket |
-
-## Adding a New Cog
-
-1. Create `src/cogs/my-cog.js`
-2. Export a `default` object with a `setup(client)` function
-3. Register prefix commands via `client.commands.set(name, cmd)`
-4. Register slash commands via `client.slashCommands.set(name, cmd)`
-5. The bot auto-loads all cog files — no other files need to change
-
-```js
-// src/cogs/my-cog.js
-export default {
-  setup(client) {
-    client.commands.set('mycommand', {
-      name: 'mycommand',
-      cog: 'MyCog',
-      async execute(message, args, client) {
-        await message.reply('Hello from my cog!');
-      },
-    });
-  },
-};
+```
+discord-bot/
+├── bot.py                  ← Entry point
+├── requirements.txt
+├── main/                   ← Core bot engine (don't touch for new features)
+│   ├── bot.py              ← Bot class, cog loader, error handler
+│   ├── config.py           ← All constants (colors, paths, token)
+│   └── utils/
+│       ├── database.py     ← Async SQLite helpers (prefix, warnings)
+│       └── embeds.py       ← Branded embed builders
+├── modules/                ← Drop new .py files here to add features
+│   ├── panel.py            ← Module manager (load/unload/reload live)
+│   ├── info.py             ← help, ping, serverinfo, userinfo, botinfo
+│   ├── moderation.py       ← ban, kick, mute, warn, purge, lock, etc.
+│   ├── admin.py            ← setprefix, prefix, say, announce
+│   └── hosting.py          ← plans, status, uptime, support, ticket, node
+└── data/
+    └── kaluxhost.db        ← SQLite database (auto-created)
 ```
 
-## Setup
+## Commands
 
-### Required Secrets
+### Panel (Module Manager)
+| Command | Description |
+|---------|-------------|
+| `!modules` | List all modules and their status |
+| `!load <name>` | Load a module |
+| `!unload <name>` | Unload a module |
+| `!reload <name>` | Hot-reload a module (picks up code changes) |
+| `!reloadall` | Reload all loaded modules |
 
-| Secret | Description |
-|--------|-------------|
-| `DISCORD_BOT_TOKEN` | Your bot's token from Discord Developer Portal |
-| `DISCORD_CLIENT_ID` | Your bot's Application ID (for slash command deploy) |
-| `DISCORD_GUILD_ID` | *(Optional)* Guild ID for instant slash command deploy |
+### Info
+`!help` `!ping` `!serverinfo` `!userinfo` `!botinfo`
 
-### Deploy Slash Commands
+### Moderation
+`!ban` `!kick` `!mute` `!unmute` `!warn` `!warnings` `!clearwarns` `!purge` `!slowmode` `!lock` `!unlock`
 
-```bash
-node src/deploy-commands.js
+### Admin
+`!setprefix` `!prefix` `!say` `!announce`
+
+### Hosting
+`!plans` `!status` `!uptime` `!support` `!ticket` `!node`
+
+All commands also have `/slash` equivalents.
+
+## Adding a New Module
+
+1. Create `modules/my-module.py`
+2. Write a `Cog` class and an `async def setup(bot)` function
+3. The bot auto-loads it on restart — or use `!load my-module` to load it live
+
+```python
+# modules/my-module.py
+from discord.ext import commands
+from main.utils.embeds import brand
+
+class MyModule(commands.Cog, name="MyModule"):
+    """🎯 My new module."""
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command(name="mycommand")
+    async def my_cmd(self, ctx):
+        await ctx.reply(embed=brand("Hello!", "This is my new command."))
+
+async def setup(bot):
+    await bot.add_cog(MyModule(bot))
 ```
 
-## Required Bot Permissions
+Then run `!load my-module` — no restart needed.
 
-- `Send Messages`
-- `Read Message History`
-- `Manage Messages`
-- `Kick Members`
-- `Ban Members`
-- `Moderate Members`
-- `Manage Channels`
-- `View Channels`
+## Secrets
 
-Enable **Message Content Intent** in the Discord Developer Portal under Bot → Privileged Gateway Intents.
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `DISCORD_BOT_TOKEN` | ✅ | Bot token from Discord Developer Portal |
+
+## Required Bot Permissions & Intents
+
+Enable in the Discord Developer Portal under **Bot → Privileged Gateway Intents**:
+- ✅ Server Members Intent
+- ✅ Message Content Intent
+
+Bot permissions: `Send Messages`, `Read Message History`, `Manage Messages`, `Kick Members`, `Ban Members`, `Moderate Members`, `Manage Channels`
