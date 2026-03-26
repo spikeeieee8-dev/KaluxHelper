@@ -91,37 +91,11 @@ class Hosting(commands.Cog, name="Hosting"):
     async def support_cmd(self, ctx: commands.Context):
         """Get support information."""
         embed = brand("🎫 KaluxHost Support")
-        embed.add_field(name="📩 Open a Ticket",  value="Use `!ticket <issue>` or `/ticket`",  inline=False)
+        embed.add_field(name="📩 Open a Ticket",  value="Use `!ticket` or `/ticket` to open a ticket",  inline=False)
         embed.add_field(name="💬 Discord",         value="Message a staff member",              inline=True)
         embed.add_field(name="📧 Email",            value="support@kaluxhost.com",              inline=True)
         embed.add_field(name="⏱️ Response Time",   value="Usually within 1 hour",              inline=True)
         await ctx.reply(embed=embed, mention_author=False)
-
-    # ── !ticket ───────────────────────────────────────────────────────────────
-
-    @commands.command(name="ticket")
-    @commands.guild_only()
-    async def ticket_cmd(self, ctx: commands.Context, *, issue: str):
-        """Open a support ticket."""
-        ticket_embed = discord.Embed(
-            title="🎫 New Support Ticket",
-            description=f"**Issue:** {issue}",
-            color=COLOR_BRAND,
-            timestamp=datetime.datetime.now(datetime.timezone.utc),
-        )
-        ticket_embed.add_field(name="User",    value=f"{ctx.author.mention} (`{ctx.author.id}`)", inline=True)
-        ticket_embed.add_field(name="Channel", value=ctx.channel.mention,                         inline=True)
-        ticket_embed.add_field(name="Status",  value="🟡 Pending",                                inline=True)
-        ticket_embed.set_footer(text="KaluxHost Support | Staff will assist you shortly.")
-
-        await ctx.reply(embed=success("Your support ticket has been submitted! Staff will assist you shortly."), mention_author=False)
-
-        log_ch = discord.utils.find(
-            lambda c: c.name in ("ticket-log", "tickets", "mod-log", "support-log"),
-            ctx.guild.text_channels,
-        )
-        if log_ch:
-            await log_ch.send(embed=ticket_embed)
 
     # ── !node ─────────────────────────────────────────────────────────────────
 
@@ -156,29 +130,6 @@ class Hosting(commands.Cog, name="Hosting"):
         embed.add_field(name="📶 API Latency",       value=f"`{round(self.bot.latency*1000)}ms`",           inline=True)
         embed.add_field(name="🟢 Services",           value="All systems operational",                      inline=True)
         await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(name="ticket", description="Open a support ticket")
-    @app_commands.guild_only()
-    async def slash_ticket(self, interaction: discord.Interaction, issue: str):
-        ticket_embed = discord.Embed(
-            title="🎫 New Support Ticket",
-            description=f"**Issue:** {issue}",
-            color=COLOR_BRAND,
-            timestamp=datetime.datetime.now(datetime.timezone.utc),
-        )
-        ticket_embed.add_field(name="User",   value=f"{interaction.user.mention} (`{interaction.user.id}`)", inline=True)
-        ticket_embed.add_field(name="Status", value="🟡 Pending",                                            inline=True)
-        ticket_embed.set_footer(text="KaluxHost Support | Staff will assist you shortly.")
-
-        await interaction.response.send_message(embed=success("Ticket submitted! Staff will assist you shortly."), ephemeral=True)
-
-        log_ch = discord.utils.find(
-            lambda c: c.name in ("ticket-log", "tickets", "mod-log", "support-log"),
-            interaction.guild.text_channels,
-        )
-        if log_ch:
-            await log_ch.send(embed=ticket_embed)
-
 
 async def setup(bot: commands.Bot):
     # Track start time for uptime command
