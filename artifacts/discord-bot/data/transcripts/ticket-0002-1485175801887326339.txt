@@ -1,0 +1,20 @@
+=== Ticket #0002 Transcript ===
+Guild      : 1485175801887326339
+User       : 919217588238700544
+Category   : Report
+Claimed by : 919217588238700544
+Reason     : N/A
+Rating     : 3
+==========================================
+
+[2026-03-26 18:59:55] <;#3350 (1485897092504354918): [Title: 🚨 Report — Ticket #0002] [Welcome <@919217588238700544>! A staff member will assist you shortly.
+
+**Category:** 🚨 Report
+**Opened:** <t:1774551595:R>]
+[2026-03-26 19:01:46] <;#3350 (1485897092504354918): [✅ ✋ <@919217588238700544> has claimed this ticket.]
+[2026-03-26 19:01:48] <;#3350 (1485897092504354918): [Title: 🔒 Ticket Closed]
+[2026-03-26 19:01:48] <;#3350 (1485897092504354918): [<@919217588238700544> — How was your support experience?
+Please rate your ticket from **1 to 5 ⭐**]
+[2026-03-26 19:01:52] <;#3350 (1485897092504354918): [✅ Thank you! You rated this ticket **⭐⭐⭐** (3/5)]
+[2026-03-26 19:01:53] <;#3350 (1485897092504354918): [User rated this ticket **3/5** ⭐⭐⭐
+Staff: delete or reopen below.]

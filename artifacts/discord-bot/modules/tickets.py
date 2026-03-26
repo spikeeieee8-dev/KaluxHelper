@@ -72,6 +72,7 @@ async def _init_db() -> None:
                 rep_count       INTEGER NOT NULL DEFAULT 0,
                 total_duty_secs INTEGER NOT NULL DEFAULT 0,
                 on_duty_since   INTEGER,
+                last_off_duty   INTEGER,
                 PRIMARY KEY (guild_id, user_id)
             );
 
@@ -84,6 +85,12 @@ async def _init_db() -> None:
             );
         """)
         await db.commit()
+        # Safe migration: add last_off_duty column for existing databases
+        try:
+            await db.execute("ALTER TABLE staff_stats ADD COLUMN last_off_duty INTEGER")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
 
 
 # ─── DB Helpers ───────────────────────────────────────────────────────────────
@@ -237,9 +244,10 @@ async def create_ticket(interaction: discord.Interaction, category: str) -> None
     staff_role_id = config.get("staff_role_id")
     staff_role = guild.get_role(int(staff_role_id)) if staff_role_id else None
     if staff_role:
+        # Staff can READ the channel but cannot SEND messages until they claim it
         overwrites[staff_role] = discord.PermissionOverwrite(
-            view_channel=True, send_messages=True,
-            read_message_history=True, attach_files=True
+            view_channel=True, send_messages=False,
+            read_message_history=True, attach_files=False
         )
 
     try:
@@ -272,12 +280,14 @@ async def create_ticket(interaction: discord.Interaction, category: str) -> None
         description=(
             f"Welcome {user.mention}! A staff member will assist you shortly.\n\n"
             f"**Category:** {cat_name}\n"
-            f"**Opened:** <t:{now}:R>"
+            f"**Opened:** <t:{now}:R>\n\n"
+            f"> 👮 **Staff:** You must press **Claim** before you can respond to this ticket.\n"
+            f"> Only the staff member who claims it may close it."
         ),
         color=COLOR_BRAND,
         timestamp=datetime.datetime.now(datetime.timezone.utc),
     )
-    embed.set_footer(text="KaluxHost Support | Staff: claim before closing")
+    embed.set_footer(text="KaluxHost Support | Staff: claim before responding")
     await channel.send(embed=embed, view=TicketControlView())
 
     if staff_role:
@@ -321,8 +331,18 @@ async def handle_claim(interaction: discord.Interaction) -> None:
         )
         await db.commit()
 
+    # Grant claimer individual send_messages so they can now respond
+    try:
+        await interaction.channel.set_permissions(
+            interaction.user,
+            view_channel=True, send_messages=True,
+            read_message_history=True, attach_files=True,
+        )
+    except Exception:
+        pass
+
     await interaction.response.send_message(
-        embed=success(f"✋ {interaction.user.mention} has claimed this ticket.")
+        embed=success(f"✋ {interaction.user.mention} has claimed this ticket and can now respond.")
     )
     try:
         await interaction.channel.edit(
@@ -560,19 +580,25 @@ async def handle_reopen(interaction: discord.Interaction) -> None:
         """, (ticket["id"],))
         await db.commit()
 
-    config = await _get_config(interaction.guild.id)
+    config      = await _get_config(interaction.guild.id)
+    old_claimer = interaction.guild.get_member(int(ticket["claimed_by"])) if ticket.get("claimed_by") else None
     user_member = interaction.guild.get_member(int(ticket["user_id"]))
     staff_role  = interaction.guild.get_role(int(config["staff_role_id"])) if config.get("staff_role_id") else None
 
     try:
+        # Restore user access
         if user_member:
             await interaction.channel.set_permissions(
                 user_member, view_channel=True, send_messages=True, read_message_history=True
             )
+        # Reset staff role back to read-only (must claim again)
         if staff_role:
             await interaction.channel.set_permissions(
-                staff_role, view_channel=True, send_messages=True, read_message_history=True
+                staff_role, view_channel=True, send_messages=False, read_message_history=True
             )
+        # Remove the old claimer's individual overwrite (they must claim again)
+        if old_claimer:
+            await interaction.channel.set_permissions(old_claimer, overwrite=None)
         await interaction.channel.set_permissions(interaction.guild.default_role, view_channel=False)
     except Exception:
         pass
@@ -744,10 +770,24 @@ class Tickets(commands.Cog, name="Tickets"):
 
         await _ensure_staff_row(ctx.guild.id, ctx.author.id)
         stats = await _get_staff_stats(ctx.guild.id, ctx.author.id)
+
         if stats.get("on_duty_since"):
             return await ctx.reply(embed=warn("You are already on duty."), mention_author=False)
 
+        # Abuse prevention: must wait 5 min after going off before going on again
         now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        last_off = stats.get("last_off_duty")
+        if last_off:
+            cooldown_remaining = 300 - (now - last_off)
+            if cooldown_remaining > 0:
+                return await ctx.reply(
+                    embed=warn(
+                        f"You must wait **{cooldown_remaining}s** before going on duty again.\n"
+                        f"This prevents rapid on/off cycling."
+                    ),
+                    mention_author=False,
+                )
+
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(
                 "UPDATE staff_stats SET on_duty_since=? WHERE guild_id=? AND user_id=?",
@@ -774,12 +814,24 @@ class Tickets(commands.Cog, name="Tickets"):
 
         now          = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
         session_secs = now - stats["on_duty_since"]
-        new_total    = (stats["total_duty_secs"] or 0) + session_secs
 
+        # Abuse prevention: minimum 5-minute session before going off
+        MIN_SESSION = 300  # 5 minutes
+        if session_secs < MIN_SESSION:
+            remaining = MIN_SESSION - session_secs
+            return await ctx.reply(
+                embed=warn(
+                    f"You must be on duty for at least **5 minutes** before going off.\n"
+                    f"Time remaining: **{remaining}s**"
+                ),
+                mention_author=False,
+            )
+
+        new_total = (stats["total_duty_secs"] or 0) + session_secs
         async with aiosqlite.connect(DB_PATH) as db:
             await db.execute(
-                "UPDATE staff_stats SET on_duty_since=NULL, total_duty_secs=? WHERE guild_id=? AND user_id=?",
-                (new_total, str(ctx.guild.id), str(ctx.author.id)),
+                "UPDATE staff_stats SET on_duty_since=NULL, total_duty_secs=?, last_off_duty=? WHERE guild_id=? AND user_id=?",
+                (new_total, now, str(ctx.guild.id), str(ctx.author.id)),
             )
             await db.commit()
 

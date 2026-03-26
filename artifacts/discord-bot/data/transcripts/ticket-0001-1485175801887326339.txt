@@ -1,0 +1,23 @@
+=== Ticket #0001 Transcript ===
+Guild      : 1485175801887326339
+User       : 919217588238700544
+Category   : Report
+Claimed by : 919217588238700544
+Reason     : N/A
+Rating     : 5
+==========================================
+
+[2026-03-26 18:54:00] <;#3350 (1485897092504354918): [Title: 🚨 Report — Ticket #0001] [Welcome <@919217588238700544>! A staff member will assist you shortly.
+
+**Category:** 🚨 Report
+**Opened:** <t:1774551238:R>]
+[2026-03-26 18:57:51] <;#3350 (1485897092504354918): [✅ ✋ <@919217588238700544> has claimed this ticket.]
+[2026-03-26 18:57:56] spikeer (919217588238700544): hello
+[2026-03-26 18:57:58] <;#3350 (1485897092504354918): [Title: 🔒 Ticket Closed]
+[2026-03-26 18:57:58] <;#3350 (1485897092504354918): [<@919217588238700544> — How was your support experience?
+Please rate your ticket from **1 to 5 ⭐**]
+[2026-03-26 18:58:09] <;#3350 (1485897092504354918): [✅ Thank you! You rated this ticket **⭐⭐⭐⭐⭐** (5/5)]
+[2026-03-26 18:58:10] <;#3350 (1485897092504354918): [User rated this ticket **5/5** ⭐⭐⭐⭐⭐
+Staff: delete or reopen below.]
+[2026-03-26 18:59:14] spikeer (919217588238700544): !setlogchannel <#1485865270344945676>
+[2026-03-26 18:59:14] <;#3350 (1485897092504354918): [✅ Log channel set to <#1485865270344945676>]
