@@ -1,0 +1,16 @@
+{
+  "name": "@workspace/discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "register": "node src/deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "better-sqlite3": "^11.9.1",
+    "dotenv": "^16.4.7"
+  }
+}

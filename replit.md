@@ -48,6 +48,31 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 - `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
 - `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 
+## Discord Bot (KaluxHost)
+
+Located at `artifacts/discord-bot/`. A fully modular cog-based Discord bot.
+
+- **Entry**: `src/index.js` — loads all cogs, registers handlers, connects to Discord
+- **Cogs**: `src/cogs/` — each file is a self-contained module. Drop a new `.js` file here to add commands.
+- **Utilities**: `src/utils/database.js` (SQLite via better-sqlite3), `src/utils/embed.js` (brand embeds)
+- **Data**: `src/data/kaluxhost.db` — SQLite database (guild prefixes, warnings)
+- **Prefix**: Default `!`, configurable per-server via `!setprefix` or `/setprefix`
+- **Secrets**: `DISCORD_BOT_TOKEN` (required), `DISCORD_CLIENT_ID` + `DISCORD_GUILD_ID` (for slash deploy)
+- **Slash deploy**: `node src/deploy-commands.js` — registers slash commands to Discord
+
+### Cogs
+
+| Cog | Prefix Commands | Slash Commands |
+|-----|----------------|----------------|
+| info | help, ping, serverinfo, userinfo | /help /ping /serverinfo /userinfo |
+| moderation | ban, kick, mute, unmute, warn, warnings, purge, slowmode | /ban /kick /mute /warn /purge |
+| admin | setprefix, currentprefix | /setprefix |
+| hosting | plans, uptime, status, support, ticket | /plans /status /ticket /uptime |
+
+### Adding a New Cog
+
+Create `src/cogs/my-cog.js` and export `default { setup(client) { ... } }`. No other files need editing.
+
 ## Packages
 
 ### `artifacts/api-server` (`@workspace/api-server`)
