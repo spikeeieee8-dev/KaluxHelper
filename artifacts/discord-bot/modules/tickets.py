@@ -763,6 +763,7 @@ class Tickets(commands.Cog, name="Tickets"):
 
     @commands.command(name="on", aliases=["onduty"])
     @commands.guild_only()
+    @commands.cooldown(1, 30, commands.BucketType.member)
     async def on_duty(self, ctx: commands.Context):
         """Go on duty — tracks active support time."""
         if not await _is_staff_ctx(ctx):
@@ -801,6 +802,7 @@ class Tickets(commands.Cog, name="Tickets"):
 
     @commands.command(name="off", aliases=["offduty"])
     @commands.guild_only()
+    @commands.cooldown(1, 30, commands.BucketType.member)
     async def off_duty(self, ctx: commands.Context):
         """Go off duty — logs the session time."""
         if not await _is_staff_ctx(ctx):
@@ -842,6 +844,109 @@ class Tickets(commands.Cog, name="Tickets"):
             ),
             mention_author=False,
         )
+
+    # ── Unclaim ───────────────────────────────────────────────────────────────
+
+    @commands.command(name="unclaim")
+    @commands.guild_only()
+    async def unclaim_cmd(self, ctx: commands.Context):
+        """Unclaim the current ticket — only the staff who claimed it can do this."""
+        ticket = await _get_ticket_by_channel(ctx.channel.id)
+        if not ticket:
+            return await ctx.reply(embed=error("This is not a ticket channel."), mention_author=False)
+        if ticket["status"] != "open":
+            return await ctx.reply(embed=error("This ticket is not open."), mention_author=False)
+        if not ticket.get("claimed_by"):
+            return await ctx.reply(embed=warn("This ticket is not currently claimed."), mention_author=False)
+        if str(ctx.author.id) != ticket["claimed_by"]:
+            claimer = ctx.guild.get_member(int(ticket["claimed_by"]))
+            name = claimer.display_name if claimer else f"<@{ticket['claimed_by']}>"
+            return await ctx.reply(
+                embed=error(f"Only **{name}** (who claimed this ticket) can unclaim it."),
+                mention_author=False,
+            )
+
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "UPDATE tickets SET claimed_by=NULL WHERE channel_id=?",
+                (str(ctx.channel.id),),
+            )
+            await db.commit()
+
+        config     = await _get_config(ctx.guild.id)
+        staff_role = ctx.guild.get_role(int(config["staff_role_id"])) if config.get("staff_role_id") else None
+        try:
+            await ctx.channel.set_permissions(ctx.author, overwrite=None)
+            if staff_role:
+                await ctx.channel.set_permissions(
+                    staff_role, view_channel=True, send_messages=False, read_message_history=True
+                )
+        except Exception:
+            pass
+
+        try:
+            topic = ctx.channel.topic or ""
+            new_topic = topic.replace(f" | Claimed by {ctx.author}", "").strip()
+            await ctx.channel.edit(topic=new_topic)
+        except Exception:
+            pass
+
+        await ctx.reply(
+            embed=success(
+                f"↩️ **{ctx.author.display_name}** has unclaimed this ticket.\n"
+                f"It is now available for any staff member to claim."
+            ),
+            mention_author=False,
+        )
+
+    # ── Listener: remind unclaimed staff ──────────────────────────────────────
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        """Warn staff who message in a ticket they haven't claimed."""
+        if message.author.bot or not message.guild:
+            return
+
+        ticket = await _get_ticket_by_channel(message.channel.id)
+        if not ticket or ticket["status"] != "open":
+            return
+
+        if str(message.author.id) == ticket["user_id"]:
+            return
+
+        config        = await _get_config(message.guild.id)
+        is_admin      = message.author.guild_permissions.administrator
+        staff_role_id = config.get("staff_role_id")
+        is_staff_role = False
+        if staff_role_id:
+            role = message.guild.get_role(int(staff_role_id))
+            if role and role in message.author.roles:
+                is_staff_role = True
+
+        if not (is_admin or is_staff_role):
+            return
+
+        claimed_by = ticket.get("claimed_by")
+        if claimed_by and str(message.author.id) == claimed_by:
+            return
+
+        if not claimed_by:
+            text = (
+                f"{message.author.mention} — this ticket is **not claimed** yet.\n"
+                f"Please press the **Claim** button before responding to it!"
+            )
+        else:
+            claimer = message.guild.get_member(int(claimed_by))
+            name    = claimer.display_name if claimer else f"<@{claimed_by}>"
+            text    = (
+                f"{message.author.mention} — this ticket is already claimed by **{name}**.\n"
+                f"Please don't respond to tickets claimed by other staff."
+            )
+
+        try:
+            await message.channel.send(embed=warn(text), delete_after=12)
+        except Exception:
+            pass
 
     # ── Rep ───────────────────────────────────────────────────────────────────
 
@@ -945,7 +1050,7 @@ class Tickets(commands.Cog, name="Tickets"):
             m    = ctx.guild.get_member(int(row["user_id"]))
             name = m.display_name if m else f"<@{row['user_id']}>"
             avg  = (row["total_rating"] / row["rating_count"]) if row["rating_count"] else 0
-            duty = "🟢" if row.get("on_duty_since") else "🔴"
+            duty = "🟢" if row["on_duty_since"] else "🔴"
             lines.append(
                 f"{medals[i]} **{name}** {duty}\n"
                 f"  Tickets: `{row['tickets_handled']}` · Rating: `{avg:.1f}⭐` · Reps: `{row['rep_count']}`"
@@ -1048,7 +1153,7 @@ class Tickets(commands.Cog, name="Tickets"):
             m    = interaction.guild.get_member(int(row["user_id"]))
             name = m.display_name if m else f"<@{row['user_id']}>"
             avg  = (row["total_rating"] / row["rating_count"]) if row["rating_count"] else 0
-            duty = "🟢" if row.get("on_duty_since") else "🔴"
+            duty = "🟢" if row["on_duty_since"] else "🔴"
             lines.append(f"{medals[i]} **{name}** {duty} — `{row['tickets_handled']}` tickets · `{avg:.1f}⭐` · `{row['rep_count']}` reps")
         embed = discord.Embed(title="🏆 KaluxHost Staff Leaderboard", description="\n".join(lines), color=COLOR_BRAND)
         await interaction.response.send_message(embed=embed)
