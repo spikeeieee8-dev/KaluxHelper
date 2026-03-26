@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "system"]
+modules = ["nodejs-20", "python-3.12", "web"]
 
 [[artifacts]]
 id = "artifacts/api-server"
@@ -26,6 +26,14 @@ author = "agent"
 task = "workflow.run"
 args = "KaluxHost Discord Bot"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Mockup Sandbox"
+
 [[workflows.workflow]]
 name = "KaluxHost Discord Bot"
 author = "agent"
@@ -36,6 +44,30 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd artifacts/discord-bot && .venv/bin/python bot.py"
+
+[[workflows.workflow]]
+name = "API Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+waitForPort = 8080
+
+[[workflows.workflow]]
+name = "Mockup Sandbox"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8081 BASE_PATH=/__mockup pnpm --filter @workspace/mockup-sandbox run dev"
+waitForPort = 8081
 
 [agent]
 stack = "PNPM_WORKSPACE"
