@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "python-3.12", "web"]
+modules = ["python-3.12", "bash"]
 
 [[artifacts]]
 id = "artifacts/api-server"
@@ -43,7 +43,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/discord-bot && .venv/bin/python bot.py"
+args = "python3 bot.py"
 
 [[workflows.workflow]]
 name = "API Server"
