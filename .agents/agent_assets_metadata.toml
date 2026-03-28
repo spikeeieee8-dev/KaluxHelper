@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "SPqXjlBa9LhjjYIPv2bVY"
+uri = "file://GUIDE.md"
+type = "text"
+title = "KaluxHost VPS Deployment Guide"

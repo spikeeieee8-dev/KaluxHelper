@@ -338,77 +338,197 @@ The bot uses a single SQLite file: `data/kaluxhost.db`.
 
 ## 6. Deploying on a VPS
 
-### Requirements
+This is a **full-stack platform** with three services that must all run on your VPS:
 
-- Ubuntu 22.04 / 24.04 (or any Debian-based Linux)
-- Python 3.12+
-- Git
+| Service | Language | What it does |
+|---|---|---|
+| **Discord Bot** | Python 3.12 | Connects to Discord, handles all commands and events |
+| **API Server** | Node.js 20 | REST API used by the dashboard (port 3001) |
+| **Dashboard** | React (static) | Served as pre-built HTML/JS/CSS via nginx |
 
-### Step 1 — Connect to your VPS
+nginx acts as the front door: it serves the dashboard files and proxies all `/api/*` requests to the Node.js API server. You only need one public port (80 / 443).
+
+---
+
+### Prerequisites
+
+- **Ubuntu 22.04 or 24.04** (or any Debian-based Linux)
+- A domain name or static IP pointed at the VPS *(optional, but required for HTTPS)*
+- Root or sudo access
+
+---
+
+### Step 1 — Connect and update the server
 
 ```bash
 ssh root@your.server.ip
-```
-
-### Step 2 — Install Python and system dependencies
-
-```bash
 apt update && apt upgrade -y
-apt install -y python3.12 python3.12-venv python3-pip git
 ```
 
-### Step 3 — Clone the repository
+---
+
+### Step 2 — Install system dependencies
 
 ```bash
-git clone https://github.com/your-username/your-repo.git /opt/kaluxhost-bot
-cd /opt/kaluxhost-bot/artifacts/discord-bot
+# Python 3.12
+apt install -y python3.12 python3.12-venv python3-pip
+
+# Node.js 20 (via NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+
+# pnpm (package manager for Node)
+npm install -g pnpm
+
+# nginx + git + extras
+apt install -y nginx git curl
 ```
 
-Or, if uploading files manually via SFTP, put them in `/opt/kaluxhost-bot/artifacts/discord-bot/`.
+Verify versions:
+```bash
+python3.12 --version   # Python 3.12.x
+node --version         # v20.x.x
+pnpm --version         # 9.x or 10.x
+nginx -v
+```
 
-### Step 4 — Set up a Python virtual environment
+---
+
+### Step 3 — Upload the project files
+
+**Option A — Git clone (recommended)**
 
 ```bash
-cd /opt/kaluxhost-bot/artifacts/discord-bot
+git clone https://github.com/your-username/your-repo.git /opt/kaluxhost
+```
+
+**Option B — SFTP upload**
+
+Upload the entire project folder to `/opt/kaluxhost` using FileZilla or any SFTP client. The structure should look like:
+
+```
+/opt/kaluxhost/
+├── bot.py
+├── requirements.txt
+├── main/
+├── modules/
+├── data/
+└── artifacts/
+    ├── api-server/
+    └── dashboard/
+```
+
+---
+
+### Step 4 — Install Python dependencies
+
+```bash
+cd /opt/kaluxhost
 python3.12 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
 ```
 
-### Step 5 — Set the Discord bot token
+Test the install (expect an error about missing token — that's fine):
+```bash
+.venv/bin/python -c "import discord, aiosqlite, yt_dlp; print('OK')"
+# Should print: OK
+```
 
-Create a `.env` file (or use environment variables directly):
+---
+
+### Step 5 — Install Node.js dependencies
 
 ```bash
-export DISCORD_BOT_TOKEN="your_bot_token_here"
+cd /opt/kaluxhost
+pnpm install
 ```
 
-Or store it permanently in `/etc/environment`:
+This installs packages for both the API server and the dashboard in one command.
 
+---
+
+### Step 6 — Build the dashboard
+
+The dashboard is a React app that needs to be compiled into static files once. nginx will serve these files directly — no Node.js process needed for the frontend.
+
+```bash
+cd /opt/kaluxhost/artifacts/dashboard
+BASE_PATH=/ PORT=3000 pnpm build
 ```
+
+The built files will be output to:
+```
+/opt/kaluxhost/artifacts/dashboard/dist/public/
+```
+
+You can verify the build succeeded:
+```bash
+ls /opt/kaluxhost/artifacts/dashboard/dist/public/
+# Should show: index.html  assets/  ...
+```
+
+---
+
+### Step 7 — Create the environment file
+
+Create a shared secrets file that all three services will read from:
+
+```bash
+nano /opt/kaluxhost/.env
+```
+
+Paste and fill in your values:
+
+```env
+# Required — get from discord.com/developers/applications
 DISCORD_BOT_TOKEN=your_bot_token_here
+
+# Required — any long random string (used to sign login tokens for the dashboard)
+# Generate one with: openssl rand -hex 48
+JWT_SECRET=replace_with_a_long_random_string_here
+
+# Optional — defaults to 3001 if not set
+API_PORT=3001
 ```
 
-Then reload: `source /etc/environment`
-
-### Step 6 — Test that the bot starts
+Set strict permissions so only root can read it:
 
 ```bash
-cd /opt/kaluxhost-bot/artifacts/discord-bot
-DISCORD_BOT_TOKEN=your_token_here .venv/bin/python bot.py
+chmod 600 /opt/kaluxhost/.env
 ```
 
-You should see the startup banner and "✅ Online as ..." in the console. Press `Ctrl+C` to stop.
+---
 
-### Step 7 — Run the bot as a background service (systemd)
+### Step 8 — Test each service manually
 
-Create a service file so the bot auto-starts and restarts on crash:
+**Test the Discord bot** (should show startup banner then `✅ Online as ...`):
+```bash
+cd /opt/kaluxhost
+set -a && source .env && set +a
+.venv/bin/python bot.py
+# Press Ctrl+C to stop once you see "Online as"
+```
+
+**Test the API server** (should print `KaluxHost API Server running on port 3001`):
+```bash
+cd /opt/kaluxhost/artifacts/api-server
+set -a && source ../../.env && set +a
+node --import tsx/esm src/index.ts
+# Press Ctrl+C to stop
+```
+
+---
+
+### Step 9 — Create systemd services
+
+systemd keeps the services running and auto-restarts them if they crash.
+
+**Service 1 — Discord Bot**
 
 ```bash
 nano /etc/systemd/system/kaluxhost-bot.service
 ```
-
-Paste the following (replace `your_token_here`):
 
 ```ini
 [Unit]
@@ -418,58 +538,225 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/kaluxhost-bot/artifacts/discord-bot
-ExecStart=/opt/kaluxhost-bot/artifacts/discord-bot/.venv/bin/python bot.py
+WorkingDirectory=/opt/kaluxhost
+EnvironmentFile=/opt/kaluxhost/.env
+ExecStart=/opt/kaluxhost/.venv/bin/python bot.py
 Restart=always
 RestartSec=5
-Environment=DISCORD_BOT_TOKEN=your_token_here
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start the service:
+**Service 2 — API Server**
+
+```bash
+nano /etc/systemd/system/kaluxhost-api.service
+```
+
+```ini
+[Unit]
+Description=KaluxHost API Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/kaluxhost/artifacts/api-server
+EnvironmentFile=/opt/kaluxhost/.env
+ExecStart=/usr/bin/node --import tsx/esm src/index.ts
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start both:
 
 ```bash
 systemctl daemon-reload
-systemctl enable kaluxhost-bot
-systemctl start kaluxhost-bot
+
+systemctl enable kaluxhost-bot kaluxhost-api
+systemctl start kaluxhost-bot kaluxhost-api
+
+# Verify they're running
+systemctl status kaluxhost-bot
+systemctl status kaluxhost-api
 ```
 
-### Step 8 — View logs
+---
+
+### Step 10 — Configure nginx
+
+nginx will:
+- Serve the pre-built dashboard files for all normal requests
+- Forward any request starting with `/api/` to the Node.js API server on port 3001
 
 ```bash
-# Live logs
+nano /etc/nginx/sites-available/kaluxhost
+```
+
+Paste the following (replace `your.domain.com` with your actual domain or server IP):
+
+```nginx
+server {
+    listen 80;
+    server_name your.domain.com;
+
+    root /opt/kaluxhost/artifacts/dashboard/dist/public;
+    index index.html;
+
+    # Serve dashboard static files
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API requests to the Node.js server
+    location /api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Connection "";
+        proxy_read_timeout 30s;
+    }
+
+    # Increase body size limit for API requests
+    client_max_body_size 10M;
+}
+```
+
+Enable the site and reload nginx:
+
+```bash
+# Enable the site
+ln -s /etc/nginx/sites-available/kaluxhost /etc/nginx/sites-enabled/
+
+# Remove the default nginx site (optional but avoids conflicts)
+rm -f /etc/nginx/sites-enabled/default
+
+# Test config is valid
+nginx -t
+
+# Reload nginx
+systemctl reload nginx
+systemctl enable nginx
+```
+
+Your dashboard should now be accessible at `http://your.domain.com`.
+
+---
+
+### Step 11 — Set up HTTPS with Let's Encrypt (optional but strongly recommended)
+
+```bash
+apt install -y certbot python3-certbot-nginx
+certbot --nginx -d your.domain.com
+```
+
+Follow the prompts. Certbot will automatically edit your nginx config to add HTTPS and set up auto-renewal. After this, the dashboard will be at `https://your.domain.com`.
+
+---
+
+### Viewing logs
+
+```bash
+# Discord bot — live tail
 journalctl -u kaluxhost-bot -f
 
-# Last 100 lines
+# API server — live tail
+journalctl -u kaluxhost-api -f
+
+# Last 100 lines of either
 journalctl -u kaluxhost-bot -n 100
+journalctl -u kaluxhost-api -n 100
+
+# nginx access/error logs
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
 ```
 
-### Updating the bot on your VPS
+---
+
+### Updating the platform
+
+After pushing new code to your repo or uploading new files via SFTP:
 
 ```bash
-cd /opt/kaluxhost-bot
+cd /opt/kaluxhost
+
+# Pull latest code (if using git)
 git pull
-cd artifacts/discord-bot
-.venv/bin/pip install -r requirements.txt   # only needed if requirements changed
-systemctl restart kaluxhost-bot
-journalctl -u kaluxhost-bot -f              # verify it started cleanly
+
+# If Python requirements changed
+.venv/bin/pip install -r requirements.txt
+
+# If Node packages changed
+pnpm install
+
+# Rebuild dashboard if any dashboard files changed
+cd artifacts/dashboard
+BASE_PATH=/ PORT=3000 pnpm build
+cd /opt/kaluxhost
+
+# Restart services
+systemctl restart kaluxhost-bot kaluxhost-api
+
+# Verify both are running
+systemctl status kaluxhost-bot kaluxhost-api
+
+# nginx doesn't need restarting unless you changed its config
 ```
+
+---
 
 ### Keeping data safe
 
-The database is at `artifacts/discord-bot/data/kaluxhost.db`. Back it up regularly:
+All persistent data lives in `data/kaluxhost.db` (SQLite) and `data/transcripts/` (ticket text files).
 
 ```bash
-# Manual backup
-cp /opt/kaluxhost-bot/artifacts/discord-bot/data/kaluxhost.db \
-   /opt/backups/kaluxhost-$(date +%Y%m%d).db
+# Create backup directory
+mkdir -p /opt/backups/kaluxhost
 
-# Automated daily backup via cron
+# Manual backup
+cp /opt/kaluxhost/data/kaluxhost.db \
+   /opt/backups/kaluxhost/kaluxhost-$(date +%Y%m%d-%H%M).db
+
+# Automated daily backup at 3 AM via cron
 crontab -e
 # Add this line:
-0 3 * * * cp /opt/kaluxhost-bot/artifacts/discord-bot/data/kaluxhost.db /opt/backups/kaluxhost-$(date +\%Y\%m\%d).db
+0 3 * * * cp /opt/kaluxhost/data/kaluxhost.db /opt/backups/kaluxhost/kaluxhost-$(date +\%Y\%m\%d).db
+```
+
+To also back up transcripts:
+
+```bash
+# Add to cron alongside the database line:
+0 3 * * * tar -czf /opt/backups/kaluxhost/transcripts-$(date +\%Y\%m\%d).tar.gz /opt/kaluxhost/data/transcripts/
+```
+
+---
+
+### Quick-reference: service management
+
+```bash
+# Start / stop / restart
+systemctl start kaluxhost-bot
+systemctl stop kaluxhost-api
+systemctl restart kaluxhost-bot kaluxhost-api
+
+# Check status
+systemctl status kaluxhost-bot
+systemctl status kaluxhost-api
+
+# Reload nginx after config changes
+nginx -t && systemctl reload nginx
 ```
 
 ---
@@ -478,43 +765,106 @@ crontab -e
 
 | Variable | Required | Description |
 |---|---|---|
-| `DISCORD_BOT_TOKEN` | ✅ Yes | Your bot's token from the Discord Developer Portal |
+| `DISCORD_BOT_TOKEN` | ✅ Yes | Your bot token from discord.com/developers/applications |
+| `JWT_SECRET` | ✅ Yes | Long random string — signs dashboard login tokens. Generate with `openssl rand -hex 48` |
+| `API_PORT` | No | Port the API server listens on. Default: `3001` |
 
-All other configuration (prefix, staff role, log channel) is stored per-guild in the database and managed via bot commands.
+All other settings (prefix, ticket staff role, log channels, welcome messages, automod rules) are stored in the SQLite database and managed via bot commands or the dashboard.
 
 ### Getting a Discord Bot Token
 
 1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
-2. Create a new application → Bot tab → Reset Token → copy the token
-3. Enable **Message Content Intent**, **Server Members Intent**, and **Presence Intent** under Privileged Gateway Intents
-4. Invite the bot with the OAuth2 URL Generator: select `bot` + `applications.commands` scopes, then select the permissions you need (at minimum: View Channels, Send Messages, Manage Channels, Manage Messages, Embed Links, Attach Files, Read Message History, Add Reactions, Moderate Members, Ban Members, Kick Members)
+2. Create a new application → **Bot** tab → **Reset Token** → copy the token
+3. Under **Privileged Gateway Intents**, enable all three:
+   - ✅ Presence Intent
+   - ✅ Server Members Intent
+   - ✅ Message Content Intent
+4. Under **OAuth2 → URL Generator**, select scopes: `bot` + `applications.commands`
+5. Select bot permissions (minimum required):
+   - View Channels, Send Messages, Embed Links, Attach Files, Read Message History
+   - Manage Channels, Manage Messages
+   - Add Reactions, Use External Emojis
+   - Kick Members, Ban Members, Moderate Members
+6. Copy the generated URL and use it to invite the bot to your server
 
 ---
 
 ## 8. Common Troubleshooting
 
 ### Bot won't start — "DISCORD_BOT_TOKEN is not set"
-Set the environment variable before running the bot:
+The token isn't being passed to the process. On a VPS check your `.env` file and the `EnvironmentFile=` line in the systemd service:
 ```bash
-export DISCORD_BOT_TOKEN="your_token"
+cat /opt/kaluxhost/.env          # verify the token is there
+systemctl cat kaluxhost-bot      # verify EnvironmentFile= path is correct
+systemctl restart kaluxhost-bot
+journalctl -u kaluxhost-bot -n 20
 ```
 
-### "An unexpected error occurred" on a command
-Check the console output (`journalctl -u kaluxhost-bot -n 50` on VPS, or the Replit console). The actual error is printed there. Common causes:
-- Missing database column (run the bot — it auto-migrates on startup)
-- Discord permission issue (bot needs correct role permissions)
+### Dashboard shows a blank page or "cannot connect"
+1. Check nginx is running: `systemctl status nginx`
+2. Check the static files exist: `ls /opt/kaluxhost/artifacts/dashboard/dist/public/`
+3. If the folder is empty, the build failed — re-run: `cd /opt/kaluxhost/artifacts/dashboard && BASE_PATH=/ PORT=3000 pnpm build`
+4. Check nginx config is valid: `nginx -t`
+5. Check nginx error log: `tail -30 /var/log/nginx/error.log`
 
-### Leaderboard shows no entries
-Staff stats are only populated when a ticket is rated by the user. Have at least one ticket go through the full flow (open → claim → close → rate).
+### Dashboard loads but API calls fail (login doesn't work, tickets don't load)
+The API server isn't running or nginx isn't proxying correctly.
+```bash
+# Check API server is up
+systemctl status kaluxhost-api
+journalctl -u kaluxhost-api -n 30
 
-### Slash commands not showing up
-Slash commands sync globally when the bot starts. This can take up to 1 hour to propagate across Discord. To force-sync to a specific guild during development, add `await self.bot.tree.sync(guild=discord.Object(id=YOUR_GUILD_ID))` in `on_ready`.
+# Test the API directly on the server
+curl http://localhost:3001/api/health
+# Should return: {"ok":true}
+
+# Test through nginx
+curl http://your.domain.com/api/health
+```
+If the direct curl works but through nginx doesn't, check your nginx `location /api/` block.
+
+### Dashboard login fails — "Invalid credentials"
+The default admin account is `admin` / `admin123`. It is created automatically when the API server first starts if no admin exists. If the API server has never started, the account won't exist yet. Start the API service and try again.
+
+### API server crashes with "JWT_SECRET is not set" or similar
+Your `.env` file is missing `JWT_SECRET`. Add it and restart:
+```bash
+echo "JWT_SECRET=$(openssl rand -hex 48)" >> /opt/kaluxhost/.env
+systemctl restart kaluxhost-api
+```
+
+### "An unexpected error occurred" on a bot command
+Check the bot log for the real error:
+```bash
+journalctl -u kaluxhost-bot -n 50
+```
+Common causes:
+- Missing database column — the bot auto-migrates on startup; restart it
+- Discord permission issue — the bot's role needs the correct permissions
+
+### Ticket transcript not available in the dashboard
+Transcripts are only saved when a ticket is **deleted** via the "Delete Ticket" button in Discord (not just closed). The file is saved to `data/transcripts/`. If the file doesn't exist, the transcript was never saved.
+
+### Slash commands not showing up in Discord
+Slash commands sync at startup. It can take up to 1 hour for Discord to propagate them globally. Restart the bot and wait. To force-sync to your guild immediately, the bot already does this on startup for guild ID `1485175801887326339` — update that ID in `main/bot.py` if you're using a different guild.
 
 ### Bot keeps restarting on VPS
-Check `journalctl -u kaluxhost-bot -n 50` for the error. Most common: bad token, missing Python packages, or a syntax error in a module. Fix the issue and run `systemctl start kaluxhost-bot`.
+Check the journal for the crash reason:
+```bash
+journalctl -u kaluxhost-bot -n 50 --no-pager
+```
+Most common causes:
+- Bad or expired Discord token
+- Missing Python package — run `.venv/bin/pip install -r requirements.txt`
+- Syntax error in a module — the error will name the file
 
 ### Ticket channels aren't created in the right category
-Update the `CATEGORY_MAP` in `modules/tickets.py` with your server's actual Discord category IDs. Right-click a category → Copy ID (enable Developer Mode in Discord settings first).
+Update `CATEGORY_MAP` in `modules/tickets.py` with your server's Discord category IDs. Right-click a category in Discord → Copy ID (enable Developer Mode in Discord Settings → Advanced first).
+
+### Welcome messages not sending
+1. Check `!welcomeconfig` — verify channel is set and status is enabled
+2. Make sure the bot has **Send Messages** and **Embed Links** permission in that channel
+3. Use `!testwelcome` to test manually without waiting for someone to join
 
 ### Staff can still message without claiming (admins)
-This is by design — Discord administrators bypass all channel permission overwrites. The bot now detects this and sends a 12-second reminder in the channel warning them to claim first.
+This is by design — Discord administrators bypass all channel permission overwrites at the API level. The bot warns them in the channel when it detects this. Non-admin staff correctly cannot write until they claim.
