@@ -43,6 +43,12 @@ class KaluxBot(commands.Bot):
         """Called before the bot connects. Load DB + all modules."""
         await init_db()
         await self._load_all_modules()
+        # Sync slash commands to KaluxHost guild
+        GUILD_ID = 1485175801887326339
+        guild = discord.Object(id=GUILD_ID)
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+        print(f"  Slash commands synced to guild {GUILD_ID}")
 
     async def _load_all_modules(self):
         """Auto-load every .py file inside /modules/ (except __init__.py)."""
