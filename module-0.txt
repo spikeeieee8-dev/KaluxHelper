@@ -1,0 +1,96 @@
+# 🛠️ KALUXHOST | PREMIUM BOT COMMAND GUIDE (2026)
+
+
+
+> **Note:** This guide covers all modules currently active on your VPS (**140.245.232.60**). All data is persistent and stored in `kaluxhost.db`.
+
+
+
+---
+
+
+
+### 🗳️ MODULE: SUGGESTION BOX (#19)
+
+*Engage the community with an interactive, one-vote-per-user system.*
+
+*   `!setsuggest` — Sets the current channel as the destination for suggestions.
+
+*   `!suggest <text>` — Submits a suggestion. Creates an embed with **Upvote/Downvote** buttons and real-time counters.
+
+*   *Anti-Flood:* Users are limited to **1 suggestion per 5 minutes**.
+
+
+
+---
+
+
+
+### 🎭 MODULE: DYNAMIC ROLE MENUS (#17)
+
+*Customizable button menus for Notifications, Colors, or Game Roles.*
+
+*   `!rolemenu "Title" #Hex @Role1 @Role2...` — Creates a button-based menu.
+
+    *   **Example:** `!rolemenu "Notifications" #00FF00 @Announcements @Giveaways`
+
+*   *Feature:* **Toggle Logic** (Click once to add role, click again to remove).
+
+
+
+---
+
+
+
+### ⭐ MODULE: VERIFIED REVIEWS (#14)
+
+*Build trust with a star-rated vouch system for your hosting services.*
+
+*   `!setvouch` — Sets the channel where public 5-star reviews will be posted.
+
+*   `!vouch <1-5> <comment>` — Posts a gold-themed verified review with your logo.
+
+*   `!vouchstats` — Shows your overall **Trust Score** (Average Rating & Total Vouches).
+
+
+
+---
+
+
+
+### 🎁 MODULE: GIVEAWAY MANAGER (#15)
+
+*Professional giveaways with live entry tracking and countdowns.*
+
+*   `!gstart <time> <winners> <prize>` — Starts a giveaway.
+
+    *   **Time Units:** `s` (sec), `m` (min), `h` (hours), `d` (days).
+
+    *   **Example:** `!gstart 2h 1 10GB VPS Node`
+
+*   *Feature:* **Live Entry Counter** updates the embed every time a user joins.
+
+
+
+---
+
+
+
+### 📌 MODULE: STICKY EMBEDS & POLLS
+
+*Keep important info visible and gather quick opinions.*
+
+*   `!stickembed <text>` — Keeps a branded embed at the bottom of the chat.
+
+*   `!stickstop` — Disables the sticky in the current channel.
+
+*   `!stickpoll yesno <Question>` — Simple Yes/No/Maybe button poll.
+
+*   `!stickpoll multi <Q, A, B, C>` — Multiple choice button poll (up to 7 options).
+
+
+
+---
+
+
+

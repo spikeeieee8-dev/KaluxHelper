@@ -1,0 +1,33 @@
+# 📌 STANDARD STICKY COMMANDS
+Keep essential info at the bottom of the channel automatically.
+
+[cite_start]• !stickembed <message>  : Creates a sticky embed that re-posts after EVERY message[cite: 20, 22].
+[cite_start]• !stickslow <message>   : Re-posts only after 13 messages or 35 seconds[cite: 24, 26].
+[cite_start]• !stickstop             : Stops and removes the sticky from the current channel[cite: 23].
+
+# 🖼️ IMAGE & BRANDING MANAGEMENT
+Customize the visual appeal of your hosting announcements.
+
+[cite_start]• !setimage <URL>        : Sets the standard image for the sticky embed[cite: 27, 29].
+[cite_start]• !setbigimage <URL>     : Sets a large banner image for the sticky embed[cite: 39, 41].
+[cite_start]• !getimage / !getbigimage : Displays the current image links for the channel[cite: 35, 47].
+[cite_start]• !removeimage / !removebigimage : Clears images from the sticky[cite: 31, 43].
+
+# 🌐 WEBHOOK STICKIES (PREMIUM identity)
+[cite_start]Use custom names and avatars for your stickies[cite: 1, 10].
+
+[cite_start]• !setwebhook <URL>      : Sets the Webhook URL (Bot deletes the link for security)[cite: 12, 15].
+[cite_start]• !stickwebhook <msg>    : Creates a sticky using the configured Webhook[cite: 8, 11].
+[cite_start]• !webhookstop           : Stops the active Webhook sticky in the channel[cite: 17, 19].
+
+# 📊 INTERACTIVE STICKY POLLS
+[cite_start]Engage your community with persistent, button-based voting[cite: 60, 62].
+
+[cite_start]• !stickpoll yesno <Q>   : Creates a Yes/No/Maybe button poll[cite: 61, 62].
+[cite_start]• !stickpoll multi <Q, A, B, C> : Creates a multi-choice poll (2-7 options)[cite: 63, 64].
+[cite_start]• !stickpoll pause/unpause : Temporarily disable or enable voting buttons[cite: 65, 69].
+[cite_start]• !stickpoll reset/end   : Reset vote counts to 0 or finalize and show results[cite: 72, 75].
+
+# ⚙️ SYSTEM & SPEED
+[cite_start]• !stickspeed            : Shows the current posting speed for the channel[cite: 76, 78].
+[cite_start]• !stickspeed <speed>    : Manually adjust the frequency of sticky posts[cite: 82, 84].
