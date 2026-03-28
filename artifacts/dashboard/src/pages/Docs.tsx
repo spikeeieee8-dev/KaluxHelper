@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { BookOpen, Search, Bot, Shield, Ticket, Music, Gift, Users, Settings, Star, Info, Hash, Activity, Bell, ChevronRight, Lock, Globe, LogIn } from "lucide-react";
+import { BookOpen, Search, Bot, Shield, Ticket, Music, Gift, Users, Settings, Star, Info, Hash, Activity, Bell, ChevronRight, Lock, Globe, LogIn, UserPlus } from "lucide-react";
 
 const MODULES = [
   {
@@ -118,6 +118,19 @@ const MODULES = [
     commands: [
       { name: "verify", syntax: "!verify", desc: "Send verification panel to a channel", admin: true },
       { name: "setverifyrole", syntax: "!setverifyrole <@role>", desc: "Set the role given on verification", admin: true },
+    ]
+  },
+  {
+    name: "Welcome", icon: UserPlus, color: "text-chart-2 bg-chart-2/10",
+    description: "Customisable welcome messages for new members",
+    commands: [
+      { name: "setwelcome", syntax: "!setwelcome [#channel]", desc: "Set the channel for welcome messages (defaults to current)", admin: true },
+      { name: "setwelcomemessage", syntax: "!setwelcomemessage <message>", desc: "Set welcome message text. Use {user}, {username}, {server}, {count} as placeholders", admin: true },
+      { name: "setwelcomerole", syntax: "!setwelcomerole [@role]", desc: "Auto-assign a role to new members on join. Omit role to clear", admin: true },
+      { name: "welcomeon", syntax: "!welcomeon", desc: "Enable welcome messages", admin: true },
+      { name: "welcomeoff", syntax: "!welcomeoff", desc: "Disable welcome messages", admin: true },
+      { name: "testwelcome", syntax: "!testwelcome", desc: "Preview the welcome message as if you just joined", admin: true },
+      { name: "welcomeconfig", syntax: "!welcomeconfig", desc: "View current welcome configuration", admin: true },
     ]
   },
   {

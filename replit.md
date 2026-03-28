@@ -48,9 +48,9 @@ Key tables:
 - `warnings` — moderation warnings
 - `ticket_config`, `automod_settings`, `guild_settings` — bot configuration
 
-## Bot Modules (24 loaded)
+## Bot Modules (25 loaded)
 
-admin, automod, birthdays, counting, ghostping, giveaways, guard, hosting, info, invites, logs, moderation, music, panel, reviews, roles, socials, **staff**, starboard, stats, sticky, suggestions, tickets, verify
+admin, automod, birthdays, counting, ghostping, giveaways, guard, hosting, info, invites, logs, moderation, music, panel, reviews, roles, socials, **staff**, starboard, stats, sticky, suggestions, tickets, verify, **welcome**
 
 ## Staff Bot Commands
 
