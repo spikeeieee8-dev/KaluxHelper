@@ -948,6 +948,8 @@ class Tickets(commands.Cog, name="Tickets"):
         except Exception:
             pass
 
+        await self.bot.process_commands(message)
+
     # ── Rep ───────────────────────────────────────────────────────────────────
 
     @commands.command(name="rep")

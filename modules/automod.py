@@ -73,5 +73,7 @@ class AutoMod(commands.Cog):
             await message.delete()
             return await message.channel.send(f"🛡️ {message.author.mention}, too many mentions! Relax.", delete_after=5)
 
+        await self.bot.process_commands(message)
+
 async def setup(bot):
     await bot.add_cog(AutoMod(bot))

@@ -152,6 +152,8 @@ class Sticky(commands.Cog, name="Sticky"):
             msg = await message.channel.send(embed=embed)
             data["last_id"] = msg.id
 
+        await self.bot.process_commands(message)
+
 class PollView(discord.ui.View):
     """[cite: 72, 75] View for handling interactive poll buttons."""
     def __init__(self, options, question):

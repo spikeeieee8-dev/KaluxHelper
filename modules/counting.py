@@ -85,5 +85,7 @@ class Counting(commands.Cog):
                 """, (user_count, str(message.author.id), new_high_score, str(message.guild.id)))
                 await db.commit()
 
+        await self.bot.process_commands(message)
+
 async def setup(bot):
     await bot.add_cog(Counting(bot))
